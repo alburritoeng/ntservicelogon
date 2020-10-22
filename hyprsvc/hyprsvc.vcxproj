@@ -151,11 +151,17 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="EventSink.cpp" />
     <ClCompile Include="hyprsvc.cpp" />
+    <ClCompile Include="Logger.cpp" />
+    <ClCompile Include="WmiEventNotifier.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="constants.h" />
+    <ClInclude Include="EventSink.h" />
     <ClInclude Include="Header.h" />
+    <ClInclude Include="Logger.h" />
+    <ClInclude Include="WmiEventNotifier.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
