@@ -67,10 +67,12 @@ void SpawnProcess(LPVOID lpEventData)
 	logger->Log("Attempting to spawn Notepad process for user");
 	WTSSESSION_NOTIFICATION *sessionNotification = static_cast<WTSSESSION_NOTIFICATION*>(lpEventData);
 
-	/*std::wstring msg(L"SpawnProcess dwSessionId:");
-	msg.append(std::to_wstring(sessionNotification->dwSessionId));
-	logger->Log(msg);*/
-		
+	if (ImpersonateUser::IsInteractive(sessionNotification->dwSessionId) != UserSessionInfo::INTERACTIVE)
+	{
+		logger->Log("Non-User Interactive session, will not spawn notepad.exe");
+		return;
+	}
+
 	bool result = ImpersonateUser::CreateNotepadAsUser(sessionNotification->dwSessionId);
 	if (result)
 	{
@@ -90,7 +92,9 @@ DWORD WINAPI ServiceCtrlHandlerEx(DWORD  dwControl, DWORD  dwEventType, LPVOID l
 		logger->Log("Session Change");
 		switch (dwEventType) {
 			case WTS_SESSION_LOGON:
+
 				logger->Log("User logged on");
+
 				wmiProcessNotifier->ReceiveNotifications();
 				SpawnProcess(lpEventData);
 				break;
@@ -250,7 +254,7 @@ void InstallNtService()
 		hypr_svc_name,             // service name to display 
 		SERVICE_ALL_ACCESS,        // desired access 
 		SERVICE_WIN32_OWN_PROCESS, // service type 
-		SERVICE_DEMAND_START,      // start type 
+		SERVICE_AUTO_START,      // start type 
 		SERVICE_ERROR_NORMAL,      // error control type 
 		svcPath,                    // path to service's binary 
 		nullptr,                      // no load ordering group 
