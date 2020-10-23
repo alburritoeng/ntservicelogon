@@ -11,11 +11,14 @@
 #include <thread>
 #include "Logger.h"
 #include "WmiEventNotifier.h"
+#include "ImpersonateUser.h"
 
 void InstallNtService(void);
 void ServiceMain(DWORD dwArgc, PWSTR* pszArgv);
 void SvcReportEvent(LPCWSTR);
 void InitializeService(DWORD dwArgc, LPTSTR *lpszArgv);
+void SpawnProcess(LPVOID lpEventData);
+
 Logger* logger = Logger::GetInstance();
 SERVICE_STATUS          gSvcStatus;
 SERVICE_STATUS_HANDLE   gSvcStatusHandle;
@@ -34,7 +37,7 @@ int wmain(int argc, wchar_t* argv[])
     // check the argument passed in, was it "install" ?
 	// if it is install, then we install it, otherwise this service app was launched by scm	
 	logger->Log("Main");	
-	
+
 	if (argc > 1 && std::wcscmp(argv[1], L"install") == 0)
 	{
 		logger->Log("Install Service\n");
@@ -59,12 +62,50 @@ int wmain(int argc, wchar_t* argv[])
 	}
 }
 
+void SpawnProcess(LPVOID lpEventData)
+{
+	logger->Log("Attempting to spawn Notepad process for user");
+	WTSSESSION_NOTIFICATION *sessionNotification = static_cast<WTSSESSION_NOTIFICATION*>(lpEventData);
+
+	/*std::wstring msg(L"SpawnProcess dwSessionId:");
+	msg.append(std::to_wstring(sessionNotification->dwSessionId));
+	logger->Log(msg);*/
+		
+	bool result = ImpersonateUser::CreateNotepadAsUser(sessionNotification->dwSessionId);
+	if (result)
+	{
+		logger->Log("Spawn process succeeded");
+		return;
+	}
+	logger->Log("Spawn process FAILED");
+}
+
 DWORD WINAPI ServiceCtrlHandlerEx(DWORD  dwControl, DWORD  dwEventType, LPVOID lpEventData, LPVOID lpContext)
 {
 	// Handle the requested control code. 
 
 	switch (dwControl)
 	{
+	case SERVICE_CONTROL_SESSIONCHANGE:
+		logger->Log("Session Change");
+		switch (dwEventType) {
+			case WTS_SESSION_LOGON:
+				logger->Log("User logged on");
+				wmiProcessNotifier->ReceiveNotifications();
+				SpawnProcess(lpEventData);
+				break;
+			case WTS_SESSION_LOGOFF:
+				logger->Log("User logged off");
+				wmiProcessNotifier->Unsubscribe();
+				break;
+			case WTS_SESSION_LOCK:
+				logger->Log("User locked machine");
+				break;
+			case WTS_SESSION_UNLOCK:
+				logger->Log("User unlocked machine");
+				break;
+			}
+		break;
 	case SERVICE_CONTROL_STOP:
 	case SERVICE_CONTROL_SHUTDOWN:
 
@@ -100,7 +141,7 @@ VOID ReportSvcStatus(DWORD dwCurrentState,	DWORD dwWin32ExitCode,	DWORD dwWaitHi
 
 	if (dwCurrentState == SERVICE_START_PENDING)
 		gSvcStatus.dwControlsAccepted = 0;
-	else gSvcStatus.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+	else gSvcStatus.dwControlsAccepted = (SERVICE_ACCEPT_SHUTDOWN|SERVICE_ACCEPT_STOP| SERVICE_ACCEPT_SESSIONCHANGE);
 
 	if ((dwCurrentState == SERVICE_RUNNING) ||
 		(dwCurrentState == SERVICE_STOPPED))
@@ -254,6 +295,7 @@ void WmiNotePadNotificationTask()
 	DWORD dwWaitForStop;
 	wmiProcessNotifier = new WmiEventNotifier();
 	dwWaitForStop = WaitForSingleObject(ghSvcStopEvent, INFINITE);
+	logger->Log("Stop event received, unsubscribing from Wmi Events");
 	wmiProcessNotifier->Unsubscribe();
 
 }

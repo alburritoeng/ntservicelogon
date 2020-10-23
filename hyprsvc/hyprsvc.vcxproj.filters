@@ -27,6 +27,9 @@
     <ClCompile Include="EventSink.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="ImpersonateUser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Header.h">
@@ -42,6 +45,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="EventSink.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="ImpersonateUser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

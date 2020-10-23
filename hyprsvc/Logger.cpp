@@ -7,8 +7,9 @@
 #include <time.h>
 #include <thread>
 #include <chrono>
-
+#include <mutex>
 Logger * Logger::instance;
+std::mutex log_mutex;
 
 char* GetTime()
 {
@@ -29,18 +30,19 @@ std::wstring PathOfSvc() {
 }
 
 void Logger::Log(const std::string msg)
-{
+{	
 	std::wstring wsMsg(msg.begin(), msg.end());	
 	Log(wsMsg);
 }
 
 void Logger::Log(const std::wstring msg)
 {
+	std::lock_guard<std::mutex> lk(log_mutex);
 	if (!instance->wofStream.is_open())
 	{
 		instance->wofStream.open(instance->logName, std::ofstream::out | std::ofstream::app);
 	}	
-
+	
 	instance->wofStream << GetTime() << std::this_thread::get_id() <<  L": " << msg << L"\n";
 	instance->wofStream.flush();
 }

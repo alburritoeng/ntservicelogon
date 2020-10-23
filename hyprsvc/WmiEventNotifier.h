@@ -5,5 +5,6 @@ public:
 	WmiEventNotifier();
 	~WmiEventNotifier();
 	void Unsubscribe();
+	void ReceiveNotifications();
 };
 

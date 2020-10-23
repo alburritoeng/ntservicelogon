@@ -9,6 +9,7 @@ IWbemObjectSink* pStubSink = nullptr;
 IWbemServices* pSvc = nullptr;
 IWbemLocator* pLoc = nullptr;
 Logger* wmiLog = Logger::GetInstance();
+int ReceiveEventNotifications();
 int InitializeCOM()
 {
 	wmiLog->Log("InitializeCOM");
@@ -130,6 +131,14 @@ int SetSecurityLevelsOnProxy()
 	return hres;
 }
 
+
+
+void WmiEventNotifier::ReceiveNotifications()
+{
+	wmiLog->Log("Subscribe to Notifications for user");
+	ReceiveEventNotifications();
+}
+
 int ReceiveEventNotifications()
 {
 	// Use an unsecured apartment for security
@@ -165,7 +174,7 @@ int ReceiveEventNotifications()
 
 void WmiEventNotifier::Unsubscribe()
 {
-	wmiLog->Log("Unsubscribe");
+	wmiLog->Log("Unsubscribe from notifications for user");
 	if (pSvc != nullptr)
 	{
 		HRESULT hres = pSvc->CancelAsyncCall(pStubSink);
@@ -224,7 +233,7 @@ WmiEventNotifier::WmiEventNotifier()
 		throw;
 	}
 
-	wmiLog->Log("SetSecurityLevelsOnProxy");
+	wmiLog->Log("SetSecurityLevelsOnProxy - success");
 	// Step 6: -------------------------------------------------
 	// Receive event notifications -----------------------------
 	hres = ReceiveEventNotifications();

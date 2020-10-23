@@ -35,9 +35,8 @@ HRESULT EventSink::Indicate(long lObjectCount,
 	HRESULT hres = S_OK;
 
 	for (int i = 0; i < lObjectCount; i++)
-	{
-		printf("Event occurred\n");
-		logInstance->Log("Event occured");
+	{		
+		logInstance->Log("****** Notepad launched! ******");
 	}
 
 	return WBEM_S_NO_ERROR;
@@ -51,11 +50,8 @@ HRESULT EventSink::SetStatus(
 )
 {
 	if (lFlags == WBEM_STATUS_COMPLETE)
-	{
-		printf("Call complete. hResult = 0x%X\n", hResult);
-		std::wstring msg(L"Call complete");
-		msg.append(std::to_wstring(hResult));
-		logInstance->Log(msg);
+	{				
+		logInstance->Log("Call complete received from Wmi");
 	}
 	else if (lFlags == WBEM_STATUS_PROGRESS)
 	{
