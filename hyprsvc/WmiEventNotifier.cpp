@@ -15,8 +15,8 @@ int InitializeCOM()
 	HRESULT hres = CoInitializeEx(0, COINIT_MULTITHREADED);
 	if (FAILED(hres))
 	{
-		cout << "Failed to initialize COM library. Error code = 0x"
-			<< hex << hres << endl;
+		std::string msg("Failed to initialize COM library. Error code =" + GetLastError());		
+		wmiLog->Log(msg);
 		return 1;                  // Program has failed.
 	}
 

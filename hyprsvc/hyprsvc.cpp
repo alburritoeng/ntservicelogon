@@ -25,14 +25,15 @@ VOID ReportSvcStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHi
 #define SVC_ERROR                        ((DWORD)0xC0020001L)
 WmiEventNotifier* wmiProcessNotifier = nullptr;
 
+bool g_showCrashDialog = false;
+
 int wmain(int argc, wchar_t* argv[])
 {
-	while (!::IsDebuggerPresent())
-		::Sleep(100); // to avoid 100% CPU load
+	//while (!::IsDebuggerPresent())
+	//	::Sleep(100); // to avoid 100% CPU load
     // check the argument passed in, was it "install" ?
-	// if it is install, then we install it, otherwise this service app was launched by scm
-	
-	logger->Log("Main");
+	// if it is install, then we install it, otherwise this service app was launched by scm	
+	logger->Log("Main");	
 	
 	if (argc > 1 && std::wcscmp(argv[1], L"install") == 0)
 	{
@@ -287,5 +288,5 @@ void InitializeService(DWORD dwArgc, LPTSTR *lpszArgv)
 
 	//spawn a thread to do work... it gets notified to stop by the Stop Event handle ghSvcStopEvent
 	std::thread notepad_worker(WmiNotePadNotificationTask);
-	
+	notepad_worker.join();
 }

@@ -30,8 +30,7 @@ std::wstring PathOfSvc() {
 
 void Logger::Log(const std::string msg)
 {
-	std::wstring wsMsg(msg.begin(), msg.end());
-
+	std::wstring wsMsg(msg.begin(), msg.end());	
 	Log(wsMsg);
 }
 
