@@ -1,8 +1,12 @@
 #include "ImpersonateUser.h"
 #include <wtsapi32.h>
 #include <ntsecapi.h>
+#include <accctrl.h> // SE_FILE_OBJECT
+#include <aclapi.h> // GetNamedSecurityInfo
+#include <stdio.h>
 #include "userenv.h"
 #include "Logger.h"
+#include "constants.h"
 
 UserSessionInfo ImpersonateUser::IsInteractive(DWORD sessionId)
 {	
@@ -58,13 +62,13 @@ bool ImpersonateUser::CreateNotepadAsUser(DWORD sessionId)
 {		
 	if (sessionId > 0)
 	{
-		//Logger::GetInstance()->Log("SessionId = " + sessionId);
-
 		HANDLE hToken = nullptr;
 		if (WTSQueryUserToken(sessionId, &hToken) != 0)
 		{
 			Logger::GetInstance()->Log(L"WTSQueryUserToken succeeded");
 			HANDLE phNewToken = nullptr;
+			// This allows a service that is impersonating a client to create a process that has the security context of the client.
+			// https://docs.microsoft.com/en-us/windows/win32/api/securitybaseapi/nf-securitybaseapi-duplicatetokenex
 			if (DuplicateTokenEx(hToken, same_as_current_user, nullptr, SECURITY_IMPERSONATION_LEVEL::SecurityImpersonation, TOKEN_TYPE::TokenPrimary, &phNewToken) != 0)
 			{
 				Logger::GetInstance()->Log(L"DuplicateTokenEx succeeded");
