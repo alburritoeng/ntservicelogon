@@ -12,22 +12,25 @@
 Logger * Logger::instance;
 std::mutex log_mutex;
 
-char* GetTime()
+bool GetTime(std::wstring& buffer)
 {
 	time_t     now = time(0);
 	struct tm localTime;	
 	localtime_s(&localTime, &now);
 
-	char time_buf[100] = { 0 };
-	strftime(time_buf, sizeof(time_buf), "%Y-%m-%d %H:%M:%S ", &localTime);
-	return std::move(time_buf);	
+	wchar_t time_buf[100] = { 0 };
+	bool result = wcsftime(time_buf, sizeof(time_buf), L"%Y-%m-%d %H:%M:%S ", &localTime);
+	buffer.assign(time_buf);
+	return result;
 }
 
-std::wstring PathOfSvc() {
-	wchar_t buffer[MAX_PATH] = { 0 };
-	GetModuleFileName(NULL, buffer, MAX_PATH);
-	std::wstring::size_type pos = std::wstring(buffer).find_last_of(L"\\/");
-	return std::wstring(buffer).substr(0, pos);
+void PathOfSvc(std::wstring& buffer)
+{
+	wchar_t buff[MAX_PATH] = { 0 };
+	GetModuleFileName(NULL, buff, MAX_PATH);
+	std::wstring::size_type pos = std::wstring(buff).find_last_of(L"\\/");
+	buffer.assign(buff);
+	buffer = buffer.substr(0, pos);
 }
 
 void Logger::Log(const std::string msg)
@@ -44,7 +47,15 @@ void Logger::Log(const std::wstring msg)
 		instance->wofStream.open(instance->logName, std::ofstream::out | std::ofstream::app);
 	}	
 	
-	instance->wofStream << std::this_thread::get_id() <<  L": " << msg << L"\n";
+	std::wstring timeBuffer;
+	if (GetTime(timeBuffer))
+	{
+		instance->wofStream << timeBuffer << " " << std::this_thread::get_id() << L": " << msg << L"\n";
+	}
+	else
+	{
+		instance->wofStream << std::this_thread::get_id() << L": " << msg << L"\n";
+	}
 	instance->wofStream.flush();
 }
 
@@ -54,7 +65,9 @@ Logger* Logger::GetInstance()
 	{
 		instance = new Logger();
 
-		instance->logName = PathOfSvc();
+		std::wstring buffer;
+		PathOfSvc(buffer);
+		instance->logName = buffer;
 		instance->logName.append(L"\\");
 		instance->logName.append(L"hypernotification");
 		instance->logName.append(L"_log.txt");
@@ -66,13 +79,6 @@ Logger* Logger::GetInstance()
 	}
 
 	return instance;
-}
-
-Logger::Logger()
-{
-	
-	// get the log name = the current module running + txt	
-	
 }
 
 Logger::~Logger()

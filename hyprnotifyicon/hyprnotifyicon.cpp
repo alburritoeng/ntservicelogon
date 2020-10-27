@@ -20,19 +20,17 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 
-// mine
+
 HDEVNOTIFY gDevNotify;
 UINT const WMAPP_NOTIFYCALLBACK = WM_APP + 1;
 // Use a guid to uniquely identify our icon
 class __declspec(uuid("63155830-5E4E-4D19-9FA8-62296F5A629F")) HyprNotifyIcon;
 HINSTANCE g_hInst = NULL;
 wchar_t szWindowClass[] = L"Hypr Notify Icon";
-BOOL ShowPrintJobBalloon(HWND hWnd, const wchar_t* msg);
-BOOL AddNotificationIcon(HWND hwnd);
+BOOL ShowPrintJobBalloon(HWND hWnd, const wchar_t* title, const wchar_t*  msg);
+BOOL AddNotificationIcon(HWND hWnd);
+BOOL DeleteNotificationIcon(HWND hWnd);
 BOOL RegisterForUsbConnections(HWND hWnd);
-// https://docs.microsoft.com/en-us/windows/win32/devio/registering-for-device-notification
-
-
 //tried and tried to use GUID_DEVINTERFACE_USB_DEVICE but kept getting a linker error,
 //possibly due to missing *.lib, but I didn't see a indication of which, so I copied the GUID here and 
 //this helped me get my USB stick appearing
@@ -138,6 +136,11 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    return TRUE;
 }
 
+/// <summary>
+/// Registers the process for USB Device connections/disconnections
+/// </summary>
+/// <param name="hWnd">pointer to windows instance</param>
+/// <returns>boolean, true if message successfully sent, othewise false</returns>
 BOOL RegisterForUsbConnections(HWND hWnd)
 {
 	// Register for device notifications
@@ -157,21 +160,26 @@ BOOL RegisterForUsbConnections(HWND hWnd)
 		return FALSE;
 	}
 	Logger::GetInstance()->Log(L"Successfully Registered for USB Notification");
-	ShowPrintJobBalloon(hWnd, L"Successfully Registered for USB Notification");
+	ShowPrintJobBalloon(hWnd, L"Registered", L"Successfully Registered for USB Notification");
 
 	return TRUE;
 }
 
-
+/// <summary>
+/// Adds the icon from the SystemTray
+/// </summary>
+/// <param name="hWnd">pointer to windows instance</param>
+/// <returns>boolean, true if message successfully sent, othewise false</returns>
 BOOL AddNotificationIcon(HWND hwnd)
 {
-	NOTIFYICONDATA nid = { sizeof(nid) };
+	NOTIFYICONDATA nid = { sizeof(nid) };	
 	nid.hWnd = hwnd;
 	// add the icon, setting the icon, tooltip, and callback message.
 	// the icon will be identified with the GUID
 	nid.uFlags = NIF_ICON | NIF_TIP | NIF_MESSAGE | NIF_SHOWTIP | NIF_GUID;
 	nid.guidItem = __uuidof(HyprNotifyIcon);
 	nid.uCallbackMessage = WMAPP_NOTIFYCALLBACK;
+	nid.uID = IDI_HYPRNOTIFYICON;
 	LoadIconMetric(g_hInst, MAKEINTRESOURCE(IDI_HYPRNOTIFYICON), LIM_SMALL, &nid.hIcon);
 	LoadString(g_hInst, IDS_TOOLTIP, nid.szTip, ARRAYSIZE(nid.szTip));
 	Shell_NotifyIcon(NIM_ADD, &nid);
@@ -181,23 +189,48 @@ BOOL AddNotificationIcon(HWND hwnd)
 	return Shell_NotifyIcon(NIM_SETVERSION, &nid);
 }
 
-BOOL ShowPrintJobBalloon(HWND hWnd, const wchar_t*  msg)
+/// <summary>
+/// Deletes the icon from the SystemTray
+/// </summary>
+/// <param name="hWnd">pointer to windows instance</param>
+/// <returns>boolean, true if message successfully sent, othewise false</returns>
+BOOL DeleteNotificationIcon(HWND hWnd)
+{
+	NOTIFYICONDATA nid;	
+	nid.cbSize = sizeof(nid);
+	nid.hWnd = hWnd;
+	nid.uFlags = NIF_ICON;
+	nid.guidItem = __uuidof(HyprNotifyIcon);
+	nid.uID = IDI_HYPRNOTIFYICON;
+	BOOL result = Shell_NotifyIcon(NIM_DELETE, &nid);
+	return result;
+}
+
+/// <summary>
+/// Method to show a notification on the SystemTray with a specific title & message
+/// </summary>
+/// <param name="hWnd">pointer to windows instance</param>
+/// <param name="title">buffer containing the title to display</param>
+/// <param name="dmsgata">buffer containing the msg to display</param>
+/// <returns>boolean, true if message successfully sent, othewise false</returns>
+BOOL ShowPrintJobBalloon(HWND hWnd, const wchar_t* title, const wchar_t*  msg)
 {
 	// Display a balloon message for a print job with a custom icon
-	NOTIFYICONDATA nid = { sizeof(nid) };
+	NOTIFYICONDATA nid = { sizeof(nid) };	
 	nid.uFlags = NIF_INFO | NIF_TIP | NIF_GUID | NIF_SHOWTIP;
 	nid.guidItem = __uuidof(HyprNotifyIcon);
-	nid.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON;
-	LoadString(g_hInst, IDS_APP_TITLE, nid.szInfoTitle, ARRAYSIZE(nid.szInfoTitle));
-	StringCchCopy(nid.szInfo, ARRAYSIZE(nid.szInfo), msg);	
+	nid.uID = IDI_HYPRNOTIFYICON;
+	nid.dwInfoFlags = NIIF_USER | NIIF_LARGE_ICON;	
+	StringCchCopy(nid.szInfoTitle, ARRAYSIZE(nid.szInfoTitle), title);
+	StringCchCopy(nid.szInfo, ARRAYSIZE(nid.szInfo), msg);
 	LoadIconMetric(g_hInst, MAKEINTRESOURCE(IDI_HYPRNOTIFYICON), LIM_LARGE, &nid.hBalloonIcon);
 
 	// Show the notification.
-	BOOL result= Shell_NotifyIcon(NIM_MODIFY, &nid) ? TRUE : FALSE;
+	BOOL result = Shell_NotifyIcon(NIM_MODIFY, &nid) ? TRUE : FALSE;
 
 	if (result == FALSE)
 	{
-		Logger::GetInstance()->Log(L"Error Showing Notification: " + std::to_wstring(GetLastError()));
+		Logger::GetInstance()->Log(L"Error Showing Notification Tray Icon ");
 	}
 	return result;
 
@@ -231,76 +264,25 @@ void ShowContextMenu(HWND hwnd, POINT pt)
 	}
 }
 
-void PrintVolumeInfo(wchar_t driveLetter)
+/// <summary>
+/// Called to help get the name of the device 
+/// </summary>
+/// <param name="lParam">pointer to event-specific data </param>
+/// <param name="data">buffer to be filled with device name</param>
+/// <returns>boolean, true - if the buffer is properly filled, false otherwise, a false does not indicate an error. </returns>
+bool CreateDeviceString(LPARAM lParam, std::wstring& data)
 {
-	TCHAR volumeName[225];
-	TCHAR fileSystemName[225];
-	DWORD serialNumber = 0;
-	DWORD maxComponentLen = 0;
-	DWORD fileSystemFlags = 0;
-	if (GetVolumeInformation(_T("c:\\"), volumeName, ARRAYSIZE(volumeName),
-		&serialNumber,
-		&maxComponentLen,
-		&fileSystemFlags,
-		fileSystemName,
-		ARRAYSIZE(fileSystemName)))
-	{
-		std::wstring msg(L"Volume Name: ");
-		msg.append(volumeName);
-		Logger::GetInstance()->Log(msg);
-
-		msg.clear();
-		msg.append(L"Serial Number: ");
-		msg.append(std::to_wstring(serialNumber));
-		Logger::GetInstance()->Log(msg);
-
-		msg.append(L"File System Name:  ");
-		msg.append(fileSystemName);
-		Logger::GetInstance()->Log(msg);
-
-		msg.clear();
-		msg.append(L"Max Component Length:");
-		msg.append(std::to_wstring(maxComponentLen));
-		Logger::GetInstance()->Log(msg);		
-	}
-}
-
-std::wstring CreateDeviceString(LPARAM lParam)
-{
-	DEV_BROADCAST_HDR* deviceInfoHeader = (DEV_BROADCAST_HDR*)lParam;
-	if (deviceInfoHeader->dbch_devicetype == DBT_DEVTYP_VOLUME)
-	{
-		PDEV_BROADCAST_VOLUME lpdbv = (PDEV_BROADCAST_VOLUME)lParam;
-		if(lpdbv->dbcv_unitmask != 0)
-		{
-			char i;
-			unsigned int umask = lpdbv->dbcv_unitmask;
-			for (i = 0; i < 26; ++i)
-			{
-				if (umask & 0x1)
-					break;
-				umask = umask >> 1;
-			}
-
-			wchar_t volumeLetter = i + L'A';
-			Logger::GetInstance()->Log(L"USB device added, DriveLetter: "  + volumeLetter);
-			PrintVolumeInfo(volumeLetter);
-		}
-		
-	}
+	DEV_BROADCAST_HDR* deviceInfoHeader = (DEV_BROADCAST_HDR*)lParam;	
 	
 	if (deviceInfoHeader->dbch_devicetype == DBT_DEVTYP_DEVICEINTERFACE)
-	{
-		DEV_BROADCAST_DEVICEINTERFACE* lpbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;
-		
-		
-		Logger::GetInstance()->Log(lpbd->dbcc_name);
-		return lpbd->dbcc_name;
-		
+	{		
+		DEV_BROADCAST_DEVICEINTERFACE* lpbd = (DEV_BROADCAST_DEVICEINTERFACE*)lParam;		
+		data = lpbd->dbcc_name;
+		return true;		
 	}
-
-	return L"";
+	return false;
 }
+
 //
 //  FUNCTION: WndProc(HWND, UINT, WPARAM, LPARAM)
 //
@@ -317,12 +299,16 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
     {
 	case WM_CREATE:
 		// add the notification icon
+		Logger::GetInstance()->Log(L"Adding Notification Icon to System Tray");
 		if (!AddNotificationIcon(hWnd))
 		{			
+			Logger::GetInstance()->Log(L"[ERROR] Failed to add Notification Icon to System Tray");
 			return -1;
 		}
+		Logger::GetInstance()->Log(L"Registering for USB Device Notifications");
 		if (!RegisterForUsbConnections(hWnd))
 		{
+			Logger::GetInstance()->Log(L"[ERROR] Failed to register for USB Device Notifications");
 			return -1;
 		}
 		break;
@@ -342,33 +328,28 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 		
 		switch (wParam)
 		{
-		case DBT_CUSTOMEVENT:
-			ShowPrintJobBalloon(hWnd, L"DBT_CUSTOMEVENT");
-			Logger::GetInstance()->Log("Custom Event");
-			break;
-		case DBT_DEVICEARRIVAL:
-			//ShowPrintJobBalloon(hWnd, L"DBT_DEVICEARRIVAL");
-			Logger::GetInstance()->Log("Device Arrival");
+
+		case DBT_DEVICEARRIVAL:						
 			{
 				std::wstring data;
-				bool result= CreateDeviceString(lParam, &data);
+				bool result= CreateDeviceString(lParam, data);
 				if (result)
 				{
-
-					//TODO i'm here!@
-					ShowPrintJobBalloon(hWnd, result.c_str());
+					Logger::GetInstance()->Log(L"Device Connected: " + data);
+					ShowPrintJobBalloon(hWnd, L"Device Connected", data.c_str());
 				}
 			}
-			break;
-		case DBT_DEVICEQUERYREMOVE:
-			ShowPrintJobBalloon(hWnd, L"DBT_DEVICEQUERYREMOVE");
-			Logger::GetInstance()->Log("Device Removed");
-			break;
+			break;		
 		case DBT_DEVICEREMOVECOMPLETE:
-			ShowPrintJobBalloon(hWnd, L"DBT_DEVICEREMOVECOMPLETE");
-			Logger::GetInstance()->Log("Device Removed 2");
+			std::wstring data;
+			bool result = CreateDeviceString(lParam, data);
+			if (result)
+			{
+				Logger::GetInstance()->Log(L"Device Removed: " + data);
+				ShowPrintJobBalloon(hWnd, L"Device Removed", data.c_str());
+			}
+		//case should there be more handled? 
 			break;
-
 		}
 
 	}
@@ -383,11 +364,9 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
                 DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
                 break;
             case IDM_EXIT:
+				Logger::GetInstance()->Log(L"Exit application");
                 DestroyWindow(hWnd);
-                break;
-			case IDM_SHOWTEXT:
-				ShowPrintJobBalloon(hWnd, L"Howdy doo dee!");				
-				break;
+                break;			
             default:
                 return DefWindowProc(hWnd, message, wParam, lParam);
             }
@@ -402,7 +381,10 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         }
         break;
     case WM_DESTROY:
+		Logger::GetInstance()->Log(L"Unregister for Device Notifications");
 		UnregisterDeviceNotification(gDevNotify);
+		Logger::GetInstance()->Log(L"Cleanup Icon from System Tray");
+		DeleteNotificationIcon(hWnd);
         PostQuitMessage(0);
         break;
     default:
