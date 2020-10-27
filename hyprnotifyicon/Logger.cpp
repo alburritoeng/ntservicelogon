@@ -1,6 +1,5 @@
 #include "Logger.h"
 #include <windows.h>
-//#include "constants.h"
 #include <iostream>
 #include <sstream>
 #include <ctime>
